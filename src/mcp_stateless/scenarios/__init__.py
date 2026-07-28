@@ -1,0 +1,1 @@
+"""Executable MCP scenarios."""
