@@ -1,14 +1,14 @@
 import argparse
 import asyncio
-import re
 from dataclasses import dataclass
 
 import httpx2
 from mcp import Client
 from mcp.client.streamable_http import streamable_http_client
 from mcp.shared.exceptions import MCPError
+from mcp_types import JSONRPCNotification, JSONRPCRequest, jsonrpc_message_adapter
 
-RPC_METHOD_PATTERN = re.compile(rb'"method"\s*:\s*"([^"]+)"')
+SESSION_NOT_FOUND = "Session not found"
 
 
 @dataclass(frozen=True)
@@ -31,10 +31,10 @@ class Attempt:
 
 
 def _rpc_method(body: bytes) -> str:
-    match = RPC_METHOD_PATTERN.search(body)
-    if match is None:
-        raise ValueError("JSON-RPC request has no method")
-    return match.group(1).decode()
+    message = jsonrpc_message_adapter.validate_json(body)
+    if not isinstance(message, JSONRPCRequest | JSONRPCNotification):
+        raise ValueError("Expected a JSON-RPC request or notification")
+    return message.method
 
 
 def _session_id(response: httpx2.Response) -> str:
@@ -43,42 +43,41 @@ def _session_id(response: httpx2.Response) -> str:
     return response.request.headers["mcp-session-id"]
 
 
+def parse_exchange(response: httpx2.Response) -> Exchange:
+    return Exchange(
+        rpc_method=_rpc_method(response.request.content),
+        status_code=response.status_code,
+        worker_pid=int(response.headers["x-worker-pid"]),
+        session_id=_session_id(response),
+    )
+
+
 async def run_attempt(url: str, number: int) -> Attempt:
     exchanges: list[Exchange] = []
 
     async def record(response: httpx2.Response) -> None:
-        exchanges.append(
-            Exchange(
-                rpc_method=_rpc_method(response.request.content),
-                status_code=response.status_code,
-                worker_pid=int(response.headers["x-worker-pid"]),
-                session_id=_session_id(response),
-            )
-        )
+        exchanges.append(parse_exchange(response))
 
-    try:
-        async with asyncio.timeout(5):
-            limits = httpx2.Limits(max_connections=1, max_keepalive_connections=0)
-            async with httpx2.AsyncClient(
-                limits=limits,
-                event_hooks={"response": [record]},
-                timeout=3,
-            ) as http_client:
-                transport = streamable_http_client(
-                    url,
-                    http_client=http_client,
-                    terminate_on_close=False,
+    async with httpx2.AsyncClient(
+        limits=httpx2.Limits(max_connections=1, max_keepalive_connections=0),
+        event_hooks={"response": [record]},
+        timeout=3,
+    ) as http_client:
+        transport = streamable_http_client(
+            url,
+            http_client=http_client,
+            terminate_on_close=False,
+        )
+        async with Client(transport, mode="legacy") as client:
+            try:
+                result = await client.call_tool(
+                    "echo_instance",
+                    {"message": f"attempt-{number}"},
                 )
-                async with Client(transport, mode="legacy") as client:
-                    result = await client.call_tool(
-                        "echo_instance",
-                        {"message": f"attempt-{number}"},
-                    )
-                    if result.is_error:
-                        return Attempt(number, tuple(exchanges), str(result.content))
-                    return Attempt(number, tuple(exchanges), None)
-    except MCPError as error:
-        return Attempt(number, tuple(exchanges), str(error))
+            except MCPError as error:
+                return Attempt(number, tuple(exchanges), str(error))
+            error = str(result.content) if result.is_error else None
+            return Attempt(number, tuple(exchanges), error)
 
 
 def _format_exchange(exchange: Exchange) -> str:
@@ -92,7 +91,12 @@ async def run(url: str, attempts: int) -> int:
     results = [await run_attempt(url, number) for number in range(1, attempts + 1)]
 
     for result in results:
-        status = "SUCCESS" if result.succeeded else "SESSION NOT FOUND"
+        if result.succeeded:
+            status = "SUCCESS"
+        elif result.error == SESSION_NOT_FOUND:
+            status = "SESSION NOT FOUND"
+        else:
+            status = "UNEXPECTED ERROR"
         route = " -> ".join(_format_exchange(item) for item in result.exchanges)
         print(f"{result.number:02} {status:<17} {route}")
         if result.error is not None:
@@ -102,12 +106,16 @@ async def run(url: str, attempts: int) -> int:
         exchange.worker_pid for result in results for exchange in result.exchanges
     }
     successes = sum(result.succeeded for result in results)
-    failures = attempts - successes
+    failures = sum(result.error == SESSION_NOT_FOUND for result in results)
+    unexpected = attempts - successes - failures
     print(
         f"\nworkers={sorted(worker_pids)} "
-        f"successes={successes} session_not_found={failures}"
+        f"successes={successes} session_not_found={failures} unexpected={unexpected}"
     )
 
+    if unexpected:
+        print("Expected only successful calls and Session not found failures.")
+        return 1
     if len(worker_pids) < 2:
         print(
             "Expected multiple worker PIDs; the server did not distribute connections."
@@ -122,7 +130,7 @@ async def run(url: str, attempts: int) -> int:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--url", default="http://127.0.0.1:8000/mcp")
-    parser.add_argument("--attempts", type=int, default=40)
+    parser.add_argument("--attempts", type=int, default=80)
     args = parser.parse_args()
     raise SystemExit(asyncio.run(run(args.url, args.attempts)))
 
