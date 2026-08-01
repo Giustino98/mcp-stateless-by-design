@@ -1,6 +1,6 @@
 import httpx2
 
-from mcp_stateless.scenarios.modern_stateless import Exchange, parse_exchange
+from mcp_stateless.modern.stateless import Exchange, parse_exchange
 
 BODY = b'{"jsonrpc":"2.0","id":1,"method":"tools/call"}'
 
@@ -20,7 +20,6 @@ def test_parses_stateless_exchange() -> None:
 
     assert parse_exchange(response) == Exchange(
         "tools/call",
-        200,
         101,
         "2026-07-28",
         False,

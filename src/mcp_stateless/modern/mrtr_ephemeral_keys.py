@@ -1,7 +1,7 @@
 import argparse
 import asyncio
 
-from mcp_stateless.mrtr_client import INVALID_REQUEST_STATE, run_attempt
+from mcp_stateless.modern.mrtr_client import INVALID_REQUEST_STATE, run_attempt
 
 
 async def run(url: str, attempts: int) -> int:

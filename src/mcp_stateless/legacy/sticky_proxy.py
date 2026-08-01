@@ -89,6 +89,7 @@ app = create_proxy(("http://127.0.0.1:8001", "http://127.0.0.1:8002"))
 
 
 def _selector_loop() -> asyncio.AbstractEventLoop:
+    # Selector avoids Proactor reset errors when clients close normal SSE responses.
     return asyncio.SelectorEventLoop()
 
 

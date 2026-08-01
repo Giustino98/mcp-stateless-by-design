@@ -6,14 +6,13 @@ import httpx2
 from mcp import Client
 from mcp.client.streamable_http import streamable_http_client
 from mcp.shared.exceptions import MCPError
-from mcp_types import JSONRPCNotification, JSONRPCRequest, jsonrpc_message_adapter
+from mcp_types import JSONRPCRequest, jsonrpc_message_adapter
 from mcp_types.version import LATEST_MODERN_VERSION
 
 
 @dataclass(frozen=True)
 class Exchange:
     rpc_method: str
-    status_code: int
     worker_pid: int
     protocol_version: str
     has_session_id: bool
@@ -21,11 +20,10 @@ class Exchange:
 
 def parse_exchange(response: httpx2.Response) -> Exchange:
     message = jsonrpc_message_adapter.validate_json(response.request.content)
-    if not isinstance(message, JSONRPCRequest | JSONRPCNotification):
-        raise ValueError("Expected a JSON-RPC request or notification")
+    if not isinstance(message, JSONRPCRequest):
+        raise ValueError("Expected a JSON-RPC request")
     return Exchange(
         rpc_method=message.method,
-        status_code=response.status_code,
         worker_pid=int(response.headers["x-worker-pid"]),
         protocol_version=response.request.headers["mcp-protocol-version"],
         has_session_id=(
@@ -38,7 +36,6 @@ def parse_exchange(response: httpx2.Response) -> Exchange:
 async def run(url: str, calls: int) -> int:
     exchanges: list[Exchange] = []
     errors: dict[int, str] = {}
-    successful_calls = 0
 
     async def record(response: httpx2.Response) -> None:
         exchanges.append(parse_exchange(response))
@@ -61,8 +58,6 @@ async def run(url: str, calls: int) -> int:
                     continue
                 if result.is_error:
                     errors[number] = str(result.content)
-                else:
-                    successful_calls += 1
 
     print("Scenario 3 - Modern stateless")
     print(f"Running {calls} self-contained tool calls across four workers.\n")
@@ -91,7 +86,7 @@ async def run(url: str, calls: int) -> int:
         if exchange.rpc_method not in {"tools/call", "tools/list"}
     }
     print("\nSummary")
-    print(f"  successful calls: {successful_calls}/{calls}")
+    print(f"  successful calls: {calls - len(errors)}/{calls}")
     print(f"  worker PIDs: {sorted(worker_pids)}")
     print(f"  initialize requests: {initialize_requests}")
     print(f"  schema lookups: {schema_lookups}")

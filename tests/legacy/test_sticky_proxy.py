@@ -1,6 +1,6 @@
 import pytest
 
-from mcp_stateless.sticky_proxy import StickyRouter
+from mcp_stateless.legacy.sticky_proxy import StickyRouter
 
 
 def test_routes_new_sessions_round_robin_and_keeps_affinity() -> None:

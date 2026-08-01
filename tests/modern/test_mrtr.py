@@ -5,8 +5,8 @@ from mcp import Client
 from mcp.server.mcpserver import RequestStateSecurity
 from mcp_types import CallToolResult, ElicitResult, InputRequiredResult, InputResponses
 
-from mcp_stateless.mrtr_client import accept_confirmation
-from mcp_stateless.mrtr_server import create_server
+from mcp_stateless.modern.mrtr_client import accept_confirmation
+from mcp_stateless.modern.mrtr_server import create_server
 
 SHARED_KEY = "0123456789abcdef0123456789abcdef"
 

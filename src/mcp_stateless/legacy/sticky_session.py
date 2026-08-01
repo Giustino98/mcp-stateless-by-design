@@ -1,7 +1,7 @@
 import argparse
 import asyncio
 
-from mcp_stateless.legacy_client import Attempt, format_exchange, run_attempt
+from mcp_stateless.legacy.client import Attempt, format_exchange, run_attempt
 
 
 def _print_attempt(attempt: Attempt, verbose: bool) -> None:

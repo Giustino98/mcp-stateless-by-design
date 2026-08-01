@@ -1,6 +1,6 @@
 import httpx2
 
-from mcp_stateless.legacy_client import Exchange, parse_exchange
+from mcp_stateless.legacy.client import Exchange, parse_exchange
 
 BODY = b'{"jsonrpc":"2.0","id":1,"method":"tools/call"}'
 

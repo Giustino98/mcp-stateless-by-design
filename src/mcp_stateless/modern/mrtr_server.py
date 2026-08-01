@@ -5,7 +5,7 @@ from mcp.server import MCPServer
 from mcp.server.mcpserver import Elicit, RequestStateSecurity, Resolve
 from pydantic import BaseModel
 
-from mcp_stateless.server import WorkerHeaderMiddleware
+from mcp_stateless.worker_pid import WorkerPidMiddleware
 
 
 class Confirmation(BaseModel):
@@ -45,4 +45,4 @@ def create_server(request_state_security: RequestStateSecurity) -> MCPServer:
 
 
 server = create_server(RequestStateSecurity.ephemeral())
-app = WorkerHeaderMiddleware(server.streamable_http_app())
+app = WorkerPidMiddleware(server.streamable_http_app())
