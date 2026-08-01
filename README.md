@@ -10,14 +10,51 @@ The central idea is simple:
 
 ## What the repository demonstrates
 
-Legacy MCP creates a session during `initialize`. A later request carrying its
-`Mcp-Session-Id` must reach a worker that knows that session. Modern MCP puts
-the protocol context in every request, so ordinary tool calls can reach any
-worker. Uvicorn workers are separate processes and do not share memory.
+The five experiments tell one progressive story.
 
-Modern multi-round-trip requests (MRTR) remain coordinated by an opaque
-`requestState`. The protocol is stateless, but every worker must be able to
-verify that token.
+### 1. Legacy MCP couples a client session to one worker
+
+Handshake-era MCP starts with `initialize`. The worker stores the negotiated
+protocol state and returns an `Mcp-Session-Id`, which every later request must
+carry. Uvicorn workers are separate processes, so a tool call routed to a
+different worker intermittently fails with `Session not found`.
+
+### 2. Legacy deployments use session affinity
+
+A proxy can remember which replica created each session and keep its later
+requests on that replica. This removes the intermittent failures, but makes the
+infrastructure responsible for MCP-aware routing state and constrains scaling,
+failover, and restarts.
+
+### 3. Modern MCP makes ordinary tool calls worker-independent
+
+Modern MCP removes the handshake and protocol session ID. Each independent
+request carries the protocol context needed to process it, so a one-round
+`tools/call` can reach any worker. This removes protocol-level session
+affinity; it does not remove application state from stateful tools.
+
+### 4. Multi-round workflows require explicit coordination
+
+Some operations cannot finish in one request. For example, a tool may need to
+ask the user for confirmation through elicitation. With
+[multi-round-trip requests (MRTR)](https://modelcontextprotocol.io/seps/2322-MRTR),
+the first round returns an opaque `requestState`; after collecting the input,
+the client retries the same logical operation with that token. These are two
+independently routed HTTP requests.
+
+The Python SDK protects `requestState` cryptographically. With its default
+per-process ephemeral key, a token created by one worker cannot be verified by
+another. This is a new coordination boundary, not the return of an implicit
+legacy session.
+
+### 5. Stateless still requires deliberate coordination
+
+All replicas can share the key and audience used to protect `requestState`.
+Any worker can then continue the operation without affinity or shared protocol
+session storage. The application developer still owns secure key distribution,
+consistent configuration, rotation, and any persistent domain state. Stateless
+means that coordination is explicit; it does not mean that coordination
+disappears.
 
 | # | Experiment | Expected observation |
 |---|---|---|
