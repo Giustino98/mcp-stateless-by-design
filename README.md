@@ -181,29 +181,3 @@ The demo passes only when every interaction succeeds and at least one successful
 retry crosses worker boundaries. The Makefile key is for local demonstration
 only; production deployments must load secret key material securely and define
 a rotation policy.
-
-## Code map
-
-```text
-src/mcp_stateless/
-|-- echo_server.py          # tool shared by scenarios 1-3
-|-- worker_pid.py           # exposes the serving PID
-|-- legacy/                 # initialize and Mcp-Session-Id
-|   |-- client.py
-|   |-- multi_worker.py
-|   |-- sticky_proxy.py
-|   `-- sticky_session.py
-`-- modern/                 # MCP 2026-07-28
-    |-- stateless.py
-    |-- mrtr_client.py
-    |-- mrtr_server.py
-    |-- mrtr_ephemeral_keys.py
-    |-- mrtr_shared_key.py
-    `-- mrtr_shared_key_server.py
-```
-
-Run formatting, linting, strict type checking, and tests with:
-
-```console
-make check
-```
