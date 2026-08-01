@@ -7,7 +7,8 @@ export UV_PYTHON_INSTALL_DIR
 .PHONY: install format format-check lint typecheck test check \
 	serve-legacy-multiworker demo-legacy-multiworker \
 	serve-sticky-replica-a serve-sticky-replica-b serve-sticky-proxy \
-	serve-sticky-session demo-sticky-session
+	serve-sticky-session demo-sticky-session \
+	serve-modern-multiworker demo-modern-stateless
 
 install:
 	$(UV) sync --python 3.14.6
@@ -50,3 +51,9 @@ serve-sticky-session:
 
 demo-sticky-session:
 	$(UV) run python -m mcp_stateless.scenarios.sticky_session
+
+serve-modern-multiworker:
+	$(UV) run uvicorn mcp_stateless.server:app --host 127.0.0.1 --port 8020 --workers 4 --no-access-log
+
+demo-modern-stateless:
+	$(UV) run python -m mcp_stateless.scenarios.modern_stateless

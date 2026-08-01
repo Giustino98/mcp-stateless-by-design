@@ -85,3 +85,41 @@ every MCP exchange.
 The same 80 independent sessions now use both replicas without crossing worker
 boundaries or producing `Session not found`. Affinity removes the intermittent
 failure, but makes the proxy responsible for MCP-specific routing state.
+
+## 3. Modern stateless
+
+With MCP `2026-07-28`, every tool call carries its protocol context. Requests
+can reach any worker without initialization, session IDs, or affinity.
+
+```mermaid
+sequenceDiagram
+    participant C as Modern client
+    participant U as Uvicorn socket
+    participant A as Worker A
+    participant B as Worker B
+
+    C->>U: tools/call + protocol context
+    U->>A: random connection
+    A-->>C: tool result
+    C->>U: tools/call + protocol context
+    U->>B: random connection
+    B-->>C: tool result
+```
+
+Start the four-worker server:
+
+```console
+make serve-modern-multiworker
+```
+
+In another terminal, run the scenario:
+
+```console
+make demo-modern-stateless
+```
+
+The demo sends 80 self-contained `tools/call` requests and passes only when
+multiple workers handle them all successfully, with zero `initialize` requests
+and zero `Mcp-Session-Id` headers. The summary also exposes the SDK's cacheable
+`tools/list` schema lookup. The load balancer needs no MCP-specific routing
+state.
