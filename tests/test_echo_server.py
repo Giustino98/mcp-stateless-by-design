@@ -3,7 +3,7 @@ import os
 import pytest
 from mcp import Client
 
-from mcp_stateless.server import create_server
+from mcp_stateless.echo_server import create_server
 
 
 @pytest.mark.asyncio

@@ -1,0 +1,1 @@
+"""MCP handshake-era scenarios."""

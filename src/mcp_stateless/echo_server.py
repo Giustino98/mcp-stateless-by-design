@@ -1,10 +1,10 @@
+import os
 from typing import TypedDict
 
 from mcp.server import MCPServer
 from mcp.server.mcpserver import Context
 
-from mcp_stateless.http import WorkerHeaderMiddleware
-from mcp_stateless.worker import pid
+from mcp_stateless.worker_pid import WorkerPidMiddleware
 
 
 class EchoResult(TypedDict):
@@ -19,7 +19,7 @@ def create_server() -> MCPServer:
     def echo_instance(message: str, context: Context[object, object]) -> EchoResult:
         return EchoResult(
             message=message,
-            pid=pid(),
+            pid=os.getpid(),
             protocol_version=context.request_context.protocol_version,
         )
 
@@ -28,4 +28,4 @@ def create_server() -> MCPServer:
 
 
 server = create_server()
-app = WorkerHeaderMiddleware(server.streamable_http_app())
+app = WorkerPidMiddleware(server.streamable_http_app())
