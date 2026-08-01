@@ -2,7 +2,7 @@ import os
 from typing import Annotated, TypedDict
 
 from mcp.server import MCPServer
-from mcp.server.mcpserver import Elicit, Resolve
+from mcp.server.mcpserver import Elicit, RequestStateSecurity, Resolve
 from pydantic import BaseModel
 
 from mcp_stateless.server import WorkerHeaderMiddleware
@@ -25,8 +25,11 @@ def request_confirmation() -> Elicit[Confirmation]:
     )
 
 
-def create_server() -> MCPServer:
-    server = MCPServer("mrtr-provisioning")
+def create_server(request_state_security: RequestStateSecurity) -> MCPServer:
+    server = MCPServer(
+        "mrtr-provisioning",
+        request_state_security=request_state_security,
+    )
 
     def provision_environment(
         name: str,
@@ -41,5 +44,5 @@ def create_server() -> MCPServer:
     return server
 
 
-server = create_server()
+server = create_server(RequestStateSecurity.ephemeral())
 app = WorkerHeaderMiddleware(server.streamable_http_app())

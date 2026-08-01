@@ -9,7 +9,8 @@ export UV_PYTHON_INSTALL_DIR
 	serve-sticky-replica-a serve-sticky-replica-b serve-sticky-proxy \
 	serve-sticky-session demo-sticky-session \
 	serve-modern-multiworker demo-modern-stateless \
-	serve-mrtr-ephemeral-keys demo-mrtr-ephemeral-keys
+	serve-mrtr-ephemeral-keys demo-mrtr-ephemeral-keys \
+	serve-mrtr-shared-key demo-mrtr-shared-key
 
 install:
 	$(UV) sync --python 3.14.6
@@ -64,3 +65,9 @@ serve-mrtr-ephemeral-keys:
 
 demo-mrtr-ephemeral-keys:
 	$(UV) run python -m mcp_stateless.scenarios.mrtr_ephemeral_keys
+
+serve-mrtr-shared-key:
+	MCP_REQUEST_STATE_KEY=0123456789abcdef0123456789abcdef $(UV) run uvicorn mcp_stateless.mrtr_shared_server:app --host 127.0.0.1 --port 8040 --workers 4 --no-access-log
+
+demo-mrtr-shared-key:
+	$(UV) run python -m mcp_stateless.scenarios.mrtr_shared_key

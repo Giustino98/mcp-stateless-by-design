@@ -161,3 +161,39 @@ The demo runs 80 real two-round interactions. Same-worker retries succeed;
 cross-worker retries fail intermittently because each process generated a
 different key. MCP removed protocol sessions, but `requestState` still requires
 coordination across replicas.
+
+## 5. MRTR with a shared worker key
+
+The tool and client are unchanged. Each worker now receives the same
+`RequestStateSecurity` key and audience, so any replica can verify a retry.
+
+```mermaid
+sequenceDiagram
+    participant C as Modern client
+    participant U as Uvicorn socket
+    participant A as Worker A / shared key
+    participant B as Worker B / shared key
+
+    C->>U: tools/call
+    U->>A: first round
+    A-->>C: input_required + requestState
+    C->>U: tools/call + confirmation + requestState
+    U->>B: retry
+    B-->>C: provisioned
+```
+
+Start the four-worker server:
+
+```console
+make serve-mrtr-shared-key
+```
+
+In another terminal, run the scenario:
+
+```console
+make demo-mrtr-shared-key
+```
+
+The demo passes only when all 80 interactions succeed and at least one retry
+crosses worker boundaries. The Makefile supplies a fixed demo key; production
+deployments must load key material securely and define a rotation policy.
