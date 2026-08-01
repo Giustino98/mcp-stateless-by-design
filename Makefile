@@ -8,7 +8,8 @@ export UV_PYTHON_INSTALL_DIR
 	serve-legacy-multiworker demo-legacy-multiworker \
 	serve-sticky-replica-a serve-sticky-replica-b serve-sticky-proxy \
 	serve-sticky-session demo-sticky-session \
-	serve-modern-multiworker demo-modern-stateless
+	serve-modern-multiworker demo-modern-stateless \
+	serve-mrtr-ephemeral-keys demo-mrtr-ephemeral-keys
 
 install:
 	$(UV) sync --python 3.14.6
@@ -57,3 +58,9 @@ serve-modern-multiworker:
 
 demo-modern-stateless:
 	$(UV) run python -m mcp_stateless.scenarios.modern_stateless
+
+serve-mrtr-ephemeral-keys:
+	$(UV) run uvicorn mcp_stateless.mrtr_server:app --host 127.0.0.1 --port 8030 --workers 4 --no-access-log
+
+demo-mrtr-ephemeral-keys:
+	$(UV) run python -m mcp_stateless.scenarios.mrtr_ephemeral_keys

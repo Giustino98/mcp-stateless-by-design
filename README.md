@@ -123,3 +123,41 @@ multiple workers handle them all successfully, with zero `initialize` requests
 and zero `Mcp-Session-Id` headers. The summary also exposes the SDK's cacheable
 `tools/list` schema lookup. The load balancer needs no MCP-specific routing
 state.
+
+## 4. MRTR with ephemeral worker keys
+
+A modern tool asks the client to confirm a costly operation. The first round
+returns an elicitation and a `requestState` protected by the worker's default
+ephemeral key. A retry routed to another worker cannot verify that token.
+
+```mermaid
+sequenceDiagram
+    participant C as Modern client
+    participant U as Uvicorn socket
+    participant A as Worker A / key A
+    participant B as Worker B / key B
+
+    C->>U: tools/call
+    U->>A: first round
+    A-->>C: input_required + requestState
+    C->>U: tools/call + confirmation + requestState
+    U->>B: retry
+    B-->>C: Invalid or expired requestState
+```
+
+Start the four-worker server:
+
+```console
+make serve-mrtr-ephemeral-keys
+```
+
+In another terminal, run the scenario:
+
+```console
+make demo-mrtr-ephemeral-keys
+```
+
+The demo runs 80 real two-round interactions. Same-worker retries succeed;
+cross-worker retries fail intermittently because each process generated a
+different key. MCP removed protocol sessions, but `requestState` still requires
+coordination across replicas.
